@@ -3,7 +3,7 @@
 """
 УЛУЧШЕННЫЙ ГЕНЕРАТОР ФОРМ ДЛЯ BLACKRUSSIA
 Вставляешь форму одним блоком → заполняешь → получаешь BB-код
-Версия: 1.2.0
+Версия: 1.1.0
 """
 
 import json
@@ -50,7 +50,7 @@ class ImprovedFormGenerator:
         self.output_folder = "form_blackrussia"
         
         # Информация о версии и обновлениях
-        self.current_version = "1.2.0"
+        self.current_version = "1.1.0"
         self.update_check_url = "https://raw.githubusercontent.com/1hysq/forum_disain/main/version.txt"
         self.github_page_url = "https://github.com/1hysq/forum_disain"
         
