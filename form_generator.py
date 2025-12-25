@@ -60,61 +60,104 @@ class ImprovedFormGenerator:
         print(f"🎮 {text}")
         print("═" * 60)
     
+    def validate_input(self, question_text, answer, field_type):
+        """Проверка введенных данных на валидность"""
+        question_lower = question_text.lower()
+        
+        # Проверка возраста
+        if any(word in question_lower for word in ["возраст", "лет", "годиков", "года", "годков", "age", "сколько лет"]):
+            try:
+                age = int(answer)
+                if age < 14 or age > 100:
+                    return False, "⚠️  Возраст должен быть в диапазоне от 14 до 100 лет."
+                if age < 18:
+                    return True, "⚠️  Внимание: вам меньше 18 лет. Убедитесь, что это правильно."
+            except ValueError:
+                return False, "⚠️  Возраст должен быть целым числом."
+        
+        # Проверка никнейма (не пустой и не слишком длинный)
+        if any(word in question_lower for word in ["никнейм", "ник", "логин", "nickname", "nick"]):
+            if not answer.strip():
+                return False, "⚠️  Никнейм не может быть пустым."
+            if len(answer) > 25:
+                return False, "⚠️  Никнейм слишком длинный (максимум 25 символов)."
+            if len(answer) < 3:
+                return False, "⚠️  Никнейм слишком короткий (минимум 3 символа)."
+        
+        # Проверка уровня
+        if any(word in question_lower for word in ["уровень", "level", "lvl"]):
+            try:
+                level = int(answer)
+                if level < 1 or level > 100:
+                    return False, "⚠️  Уровень должен быть в диапазоне от 1 до 100."
+            except ValueError:
+                return False, "⚠️  Уровень должен быть целым числом."
+        
+        # Проверка часового пояса
+        if any(word in question_lower for word in ["часовой пояс", "таймзона", "timezone", "часовой"]):
+            if not any(word in answer.lower() for word in ["gmt", "utc", "msk", "+", "-"]):
+                return True, "⚠️  Убедитесь, что правильно указали часовой пояс (например, GMT+3, UTC+5, MSK)."
+        
+        # Проверка ссылок
+        if field_type == "link" or field_type == "screenshot":
+            if not answer.startswith(("http://", "https://")):
+                return False, "⚠️  Ссылка должна начинаться с http:// или https://"
+        
+        # Общая проверка на слишком короткий ответ
+        if len(answer.strip()) < 2 and field_type == "text":
+            return True, "⚠️  Ответ очень короткий. Убедитесь, что это правильно."
+        
+        return True, "✅ Ответ принят"
+    
     def get_form_input(self):
         """Получение формы от пользователя - УЛУЧШЕННАЯ ВЕРСИЯ"""
         self.clear_screen()
         self.print_title("ВВОД ФОРМЫ")
         
         print("📝 Вставьте вашу форму целиком (копируйте из темы на форуме)")
-        print("\n🔥 ВАЖНО: После вставки нажмите Enter, а затем введите слово 'ГОТОВО'")
-        print("   Это защита от преждевременного завершения ввода!")
+        print("\n📌 ВАЖНО: После вставки просто дважды нажмите Enter для завершения")
+        print("   Это быстро и защищает от случайного ввода!")
         print("-" * 60)
         
         print("\n📋 ВСТАВЬТЕ ВАШУ ФОРМУ СЕЙЧАС:")
         print("=" * 60)
         
         lines = []
-        print("\n[Начинайте ввод. После завершения введите 'ГОТОВО' на отдельной строке]")
+        print("\n[Начинайте ввод. Для завершения введите две пустые строки подряд]\n")
         
-        # Счетчик для пустых строк подряд
-        empty_lines_count = 0
+        empty_line_count = 0
         
-        try:
-            while True:
-                try:
-                    line = input()
-                except EOFError:
-                    print("\n⚠️  Обнаружен EOF. Завершаем ввод...")
-                    break
-                    
-                # Проверяем команду завершения
-                if line.strip().upper() == 'ГОТОВО':
-                    print("✅ Ввод завершен по команде 'ГОТОВО'")
-                    break
-                    
-                # Проверяем, не пытается ли пользователь завершить ввод
-                if not line.strip():
-                    empty_lines_count += 1
-                    if empty_lines_count >= 2:
-                        print("\n⚠️  Обнаружены две пустые строки подряд.")
-                        confirm = input("Вы хотите завершить ввод? (y/n): ").lower()
-                        if confirm == 'y':
-                            break
-                        else:
-                            print("Продолжайте ввод...")
-                            empty_lines_count = 0
-                            continue
+        while True:
+            try:
+                line = input().rstrip('\n')
+                
+                # Проверяем на пустую строку
+                if line == "":
+                    empty_line_count += 1
+                    if empty_line_count >= 2:
+                        print("\n✅ Ввод завершен (две пустые строки)")
+                        break
+                    continue
                 else:
-                    empty_lines_count = 0
+                    empty_line_count = 0
                 
                 lines.append(line)
-                
-        except KeyboardInterrupt:
-            print("\n\n⚠️  Ввод прерван пользователем.")
-            confirm = input("Завершить ввод? (y/n): ").lower()
-            if confirm != 'y':
-                return self.get_form_input()  # Начинаем заново
-            return None, None
+                    
+            except KeyboardInterrupt:
+                print("\n\n⚠️  Ввод прерван пользователем.")
+                confirm = input("Завершить ввод? (y/n): ").lower()
+                if confirm == 'y':
+                    break
+                else:
+                    print("Продолжайте ввод...")
+                    empty_line_count = 0
+                    continue
+            except EOFError:
+                print("\n\n📥 Обнаружен конец ввода. Завершаем...")
+                break
+            except Exception as e:
+                print(f"\n⚠️  Произошла ошибка: {e}")
+                return None, None
         
         if not lines:
             print("❌ Вы не ввели форму!")
@@ -123,20 +166,20 @@ class ImprovedFormGenerator:
         # Объединяем в одну строку
         full_text = "\n".join(lines)
         
-        # Отладочная информация
+        # Быстрая проверка
         print(f"\n✅ Получено строк: {len(lines)}")
         print(f"📏 Длина текста: {len(full_text)} символов")
         
-        # Показываем первые 5 строк для проверки
-        print("\n📄 ПРЕДПРОСМОТР (первые 5 строк):")
+        # Показываем первые 3 строки для проверки
+        print("\n📄 ПРЕДПРОСМОТР (первые 3 строки):")
         print("-" * 40)
-        for i, line in enumerate(lines[:5]):
-            print(f"{i+1}: {line[:60]}{'...' if len(line) > 60 else ''}")
-        if len(lines) > 5:
-            print(f"... и еще {len(lines) - 5} строк")
+        for i, line in enumerate(lines[:3]):
+            print(f"{i+1}: {line[:80]}{'...' if len(line) > 80 else ''}")
+        if len(lines) > 3:
+            print(f"... и еще {len(lines) - 3} строк")
         print("-" * 40)
         
-        # Проверяем, есть ли вопросы в форме
+        # Быстрое подтверждение
         confirm = input("\n✅ Форма введена правильно? (y/n): ").lower()
         if confirm != 'y':
             print("\n🔄 Попробуем еще раз...")
@@ -144,6 +187,90 @@ class ImprovedFormGenerator:
         
         # Извлекаем заголовок и вопросы
         return self.parse_full_form(full_text)
+    
+    def remove_questions(self, questions):
+        """Удаление ненужных вопросов из формы"""
+        self.clear_screen()
+        self.print_title("УДАЛЕНИЕ ВОПРОСОВ")
+        
+        print("📝 Укажите номера вопросов, которые нужно удалить (через запятую или диапазон)")
+        print("Пример: 1,3,5-7,10")
+        print("Пример 2: все - удалить все вопросы")
+        print("-" * 60)
+        
+        # Показываем все вопросы с номерами
+        for i, q in enumerate(questions):
+            preview = q['original'][:60] + "..." if len(q['original']) > 60 else q['original']
+            print(f"{i+1:3d}. {preview}")
+        
+        print("-" * 60)
+        
+        while True:
+            try:
+                delete_input = input("\nВведите номера для удаления (или Enter чтобы пропустить): ").strip().lower()
+                
+                if not delete_input:
+                    print("✅ Удаление отменено.")
+                    return
+                
+                # Проверка на удаление всех
+                if delete_input == "все":
+                    confirm = input("⚠️  Удалить ВСЕ вопросы? (y/n): ").lower()
+                    if confirm == 'y':
+                        questions.clear()
+                        print("✅ Все вопросы удалены.")
+                        return
+                    else:
+                        print("✅ Удаление отменено.")
+                        continue
+                
+                # Парсим ввод
+                indices_to_delete = set()
+                parts = delete_input.split(',')
+                
+                for part in parts:
+                    part = part.strip()
+                    if '-' in part:
+                        start, end = part.split('-')
+                        start_idx = int(start.strip()) - 1
+                        end_idx = int(end.strip()) - 1
+                        for idx in range(min(start_idx, end_idx), max(start_idx, end_idx) + 1):
+                            if 0 <= idx < len(questions):
+                                indices_to_delete.add(idx)
+                    else:
+                        idx = int(part) - 1
+                        if 0 <= idx < len(questions):
+                            indices_to_delete.add(idx)
+                
+                if not indices_to_delete:
+                    print("⚠️  Не указаны корректные номера вопросов.")
+                    continue
+                
+                # Быстрое подтверждение
+                print(f"\n⚠️  Будут удалены {len(indices_to_delete)} вопросов: {sorted([i+1 for i in indices_to_delete])}")
+                confirm = input("Подтвердить удаление? (y/n): ").lower()
+                
+                if confirm == 'y':
+                    # Удаляем в обратном порядке
+                    for idx in sorted(indices_to_delete, reverse=True):
+                        questions.pop(idx)
+                    
+                    print(f"✅ Удалено {len(indices_to_delete)} вопросов.")
+                    print(f"📋 Осталось вопросов: {len(questions)}")
+                    
+                    # Пересчитываем номера
+                    for i, q in enumerate(questions):
+                        q['number'] = i + 1
+                    
+                    break
+                else:
+                    print("✅ Удаление отменено.")
+                    break
+                    
+            except ValueError:
+                print("❌ Неверный формат. Используйте числа, запятые и тире или 'все'.")
+            except Exception as e:
+                print(f"❌ Ошибка: {e}")
     
     def clean_question_text(self, text):
         """Очистка текста вопроса"""
@@ -153,32 +280,6 @@ class ImprovedFormGenerator:
         if cleaned.endswith(':'):
             cleaned = cleaned[:-1].strip()
         return cleaned
-    
-    def alternative_parse(self, lines):
-        """Альтернативный парсинг для сложных случаев"""
-        questions = []
-        
-        # Паттерны для поиска вопросов
-        patterns = [
-            r'(\d+[\.\)]\s*.+?:)',  # Номер. текст:
-            r'(\d+\.\s*.+)',       # Номер. текст
-            r'^([^:]+?:)$',        # текст:
-        ]
-        
-        for line in lines:
-            for pattern in patterns:
-                match = re.search(pattern, line)
-                if match:
-                    question_text = match.group(1).strip()
-                    questions.append({
-                        "number": len(questions) + 1,
-                        "original": question_text,
-                        "clean": self.clean_question_text(question_text),
-                        "type": self.detect_field_type(question_text)
-                    })
-                    break
-        
-        return questions
     
     def parse_full_form(self, text):
         """Парсинг полной формы - УЛУЧШЕННАЯ ВЕРСИЯ"""
@@ -233,7 +334,25 @@ class ImprovedFormGenerator:
         
         # Если не нашли вопросы стандартным способом, пытаемся другим
         if not questions:
-            questions = self.alternative_parse(lines)
+            return self.alternative_parse(lines)
+        
+        return title, questions
+    
+    def alternative_parse(self, lines):
+        """Альтернативный парсинг для сложных случаев"""
+        title = "ФОРМА ЗАЯВЛЕНИЯ"
+        questions = []
+        
+        for i, line in enumerate(lines):
+            if any(word in line.lower() for word in ["форма", "заявление", "анкета"]):
+                title = line
+            elif re.match(r'^\d+[\.\)]\s*', line):
+                questions.append({
+                    "number": len(questions) + 1,
+                    "original": line,
+                    "clean": self.clean_question_text(line),
+                    "type": self.detect_field_type(line)
+                })
         
         return title, questions
     
@@ -271,7 +390,6 @@ class ImprovedFormGenerator:
         
         for q in questions:
             print(f"\n{'─' * 50}")
-            # ИСПРАВЛЕНО: Правильный формат вывода вопроса
             print(f"❓ ВОПРОС {q['number']}. {q['clean']}:")
             
             field_type = q["type"]
@@ -297,13 +415,19 @@ class ImprovedFormGenerator:
                     screenshot_services = ["imgur.com", "prnt.sc", "prntscr.com", "gyazo.com"]
                     is_screenshot = any(service in answer.lower() for service in screenshot_services)
                     
+                    # Проверка валидности
+                    is_valid, message = self.validate_input(q['clean'], answer, field_type)
+                    print(message)
+                    
                     if is_screenshot or answer.startswith("https://"):
-                        break
-                    else:
-                        print("⚠️  Похоже, это не ссылка на скриншот. Убедитесь, что используете правильный сервис.")
-                        confirm = input("Все равно использовать эту ссылку? (y/n): ").lower()
-                        if confirm == 'y':
+                        if is_valid:
                             break
+                    else:
+                        print("⚠️  Похоже, это не ссылка на скриншот.")
+                        confirm = input("Использовать эту ссылку? (y/n): ").lower()
+                        if confirm == 'y':
+                            if is_valid:
+                                break
             
             elif field_type == "link":
                 print("🔗 Вставьте ссылку:")
@@ -318,33 +442,51 @@ class ImprovedFormGenerator:
                     if not answer.startswith(("http://", "https://")):
                         answer = f"https://{answer}"
                     
-                    break
+                    # Проверка валидности
+                    is_valid, message = self.validate_input(q['clean'], answer, field_type)
+                    print(message)
+                    
+                    if is_valid:
+                        break
             
             elif field_type == "multiline":
                 print("📄 Введите развернутый ответ:")
-                print("(Для завершения введите пустую строку)")
+                print("(Нажмите Enter на пустой строке для завершения)")
                 
                 lines = []
-                line_num = 1
                 
                 while True:
-                    line = input(f"  Строка {line_num}: ").strip()
+                    line = input(f"  Строка {len(lines)+1}: ").rstrip()
+                    
                     if line == "":
                         if lines:
                             break
                         else:
                             print("  ⚠️  Ответ не может быть пустым!")
                             continue
-                    lines.append(line)
-                    line_num += 1
+                    else:
+                        lines.append(line)
                 
                 answer = "\n".join(lines)
+                
+                # Проверка валидности
+                is_valid, message = self.validate_input(q['clean'], answer, field_type)
+                print(message)
             
             else:  # Текст
-                answer = input("Ответ: ").strip()
-                while not answer:
-                    print("⚠️  Ответ не может быть пустым!")
+                while True:
                     answer = input("Ответ: ").strip()
+                    
+                    if not answer:
+                        print("⚠️  Ответ не может быть пустым!")
+                        continue
+                    
+                    # Проверка валидности
+                    is_valid, message = self.validate_input(q['clean'], answer, field_type)
+                    print(message)
+                    
+                    if is_valid:
+                        break
             
             # Сохраняем заполненный вопрос
             filled_questions.append({
@@ -378,7 +520,6 @@ class ImprovedFormGenerator:
                 "multiline": "📄"
             }.get(q["type"], "❓")
             
-            # ИСПРАВЛЕНО: Единый формат вывода
             print(f"{type_icon} ВОПРОС {q['number']}. {q['question']}:")
             print(f"   Ответ: {answer_preview}")
             print()
@@ -435,8 +576,20 @@ class ImprovedFormGenerator:
                     
                     new_answer = input("Новый ответ: ").strip()
                     if new_answer:
-                        q_to_edit["answer"] = new_answer
-                        print("✅ Ответ обновлен")
+                        # Проверка валидности нового ответа
+                        is_valid, message = self.validate_input(q_to_edit['question'], new_answer, q_to_edit['type'])
+                        print(message)
+                        
+                        if is_valid:
+                            q_to_edit["answer"] = new_answer
+                            print("✅ Ответ обновлен")
+                        else:
+                            confirm = input("Все равно использовать этот ответ? (y/n): ").lower()
+                            if confirm == 'y':
+                                q_to_edit["answer"] = new_answer
+                                print("✅ Ответ обновлен")
+                            else:
+                                print("⚠️  Ответ не изменен")
                     else:
                         print("⚠️  Ответ не изменен")
                 else:
@@ -505,7 +658,6 @@ class ImprovedFormGenerator:
             if not question_text.endswith(":"):
                 question_text = f"{question_text}:"
             
-            # ИСПРАВЛЕНО: Правильный формат вопроса в BB-коде
             question_display = f"ВОПРОС {q['number']}. {question_text}"
             answer = q["answer"]
             field_type = q["type"]
@@ -644,6 +796,29 @@ class ImprovedFormGenerator:
             return
         
         print(f"\n✅ Извлечено {len(questions)} вопросов")
+        
+        # Даем возможность удалить вопросы
+        while True:
+            print("\n🎯 ОПЦИИ ФОРМЫ:")
+            print("  1. ✅ Все верно, продолжить заполнение")
+            print("  2. ❌ Удалить ненужные вопросы")
+            print("  3. 🔄 Ввести форму заново")
+            
+            choice = input("\nВаш выбор (1-3): ").strip()
+            
+            if choice == "1":
+                break
+            elif choice == "2":
+                self.remove_questions(questions)
+                if not questions:
+                    print("❌ Все вопросы удалены. Начнем заново.")
+                    return self.run_workflow()
+                break
+            elif choice == "3":
+                return self.run_workflow()
+            else:
+                print("❌ Неверный выбор")
+        
         input("\n↵ Нажмите Enter чтобы начать заполнение...")
         
         # Шаг 2: Заполнение формы
