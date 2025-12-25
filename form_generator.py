@@ -3,7 +3,7 @@
 """
 УЛУЧШЕННЫЙ ГЕНЕРАТОР ФОРМ ДЛЯ BLACKRUSSIA
 Вставляешь форму одним блоком → заполняешь → получаешь BB-код
-Версия: 1.1.0
+Версия: 1.2.0
 """
 
 import json
@@ -50,7 +50,7 @@ class ImprovedFormGenerator:
         self.output_folder = "form_blackrussia"
         
         # Информация о версии и обновлениях
-        self.current_version = "1.1.0"
+        self.current_version = "1.2.0"
         self.update_check_url = "https://raw.githubusercontent.com/1hysq/forum_disain/main/version.txt"
         self.github_page_url = "https://github.com/1hysq/forum_disain"
         
@@ -115,13 +115,16 @@ class ImprovedFormGenerator:
             with urllib.request.urlopen(req, timeout=5) as response:
                 content = response.read().decode('utf-8').strip()
                 
-                # Ищем версию в формате X.X.X
-                version_match = re.search(r'(\d+\.\d+\.\d+)', content)
+                # Убираем все лишние символы, оставляем только версию
+                # Ищем версию в формате X.X.X или X.X.X.X
+                version_match = re.search(r'(\d+\.\d+(?:\.\d+)*)', content)
                 if version_match:
                     latest_version = version_match.group(1)
                     
                     # Сравниваем версии
-                    if self.compare_versions(self.current_version, latest_version) < 0:
+                    comparison = self.compare_versions(self.current_version, latest_version)
+                    
+                    if comparison < 0:
                         if not silent:
                             print(f"\n🎉 Доступно обновление!")
                             print(f"   Текущая версия: {self.current_version}")
@@ -139,7 +142,7 @@ class ImprovedFormGenerator:
                         return False
                 else:
                     if not silent:
-                        print("❌ Не удалось получить версию с сервера")
+                        print(f"❌ Не удалось найти версию в файле. Содержимое: '{content}'")
                     return False
                 
         except urllib.error.URLError:
@@ -153,13 +156,14 @@ class ImprovedFormGenerator:
     def compare_versions(self, v1, v2):
         """Сравнение версий"""
         def parse_version(v):
-            # Извлекаем числа из версии
+            # Убираем все нецифровые символы кроме точек
+            v = re.sub(r'[^\d\.]', '', v)
+            # Разбиваем на части
             parts = []
             for part in v.split('.'):
-                num = re.search(r'\d+', part)
-                if num:
-                    parts.append(int(num.group()))
-                else:
+                try:
+                    parts.append(int(part))
+                except ValueError:
                     parts.append(0)
             # Дополняем до 3 частей
             while len(parts) < 3:
@@ -170,11 +174,15 @@ class ImprovedFormGenerator:
         v2_parts = parse_version(v2)
         
         # Сравниваем по частям
-        for i in range(3):
-            if v1_parts[i] < v2_parts[i]:
+        for i in range(max(len(v1_parts), len(v2_parts))):
+            v1_part = v1_parts[i] if i < len(v1_parts) else 0
+            v2_part = v2_parts[i] if i < len(v2_parts) else 0
+            
+            if v1_part < v2_part:
                 return -1
-            elif v1_parts[i] > v2_parts[i]:
+            elif v1_part > v2_part:
                 return 1
+        
         return 0
     
     def get_form_input(self):
